@@ -119,9 +119,11 @@ FOVSliderFill.BackgroundColor3 = Color3.fromRGB(65, 175, 255)
 FOVSliderFill.BorderSizePixel = 0
 FOVSliderFill.Parent = FOVSlider
 
+-- Fixed line 63:
 local FOVSliderButton = Instance.new("TextButton")
 FOVSliderButton.Size = UDim2.new(0, 16, 0, 16)
-FOVSliderButton.Position = UDim2.new(settings.fov/400, -8, 0.5, -8)
+FOVSliderButton.AnchorPoint = Vector2.new(0.5, 0.5)
+FOVSliderButton.Position = UDim2.new(settings.fov/400, 0, 0.5, 0)
 FOVSliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 FOVSliderButton.Text = ""
 FOVSliderButton.Parent = FOVSlider
@@ -248,7 +250,9 @@ UserInputService.InputChanged:Connect(function(input)
         
         local relativeX = math.clamp((mousePos.X - sliderPos.X) / sliderSize.X, 0, 1)
         FOVSliderFill.Size = UDim2.new(relativeX, 0, 1, 0)
-        FOVSliderButton.Position = UDim2.new(relativeX, -8, 0.5, -8)
+        
+        -- Fixed slider button position
+        FOVSliderButton.Position = UDim2.new(relativeX, 0, 0.5, 0)
         
         -- Update FOV (10-400 range)
         settings.fov = math.floor(relativeX * 390 + 10)
