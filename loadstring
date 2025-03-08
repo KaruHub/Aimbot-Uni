@@ -1,6 +1,7 @@
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -8,159 +9,143 @@ local mouse = player:GetMouse()
 
 -- Aimbot settings
 local settings = {
+    -- Aimbot
     enabled = false,
     key = Enum.KeyCode.E,
-    teamCheck = true,  -- Won't target teammates
-    maxDistance = 1000, -- Maximum distance to detect players
-    sensitivity = 0.5, -- Lower value = smoother camera movement
-    fov = 100, -- Field of view for targeting (in pixels)
-    showFOV = true, -- Show FOV circle
+    teamCheck = true,
+    maxDistance = 1000,
+    sensitivity = 0.5,
+    fov = 100,
+    showFOV = true,
+    
+    -- ESP Settings
+    espEnabled = false,
+    boxESP = true,
+    nameESP = true,
+    distanceESP = true,
+    tracerESP = false,
+    espColor = Color3.fromRGB(255, 50, 255),
+    espTeamColor = false,
+    espTransparency = 0.8,
+    
+    -- Other
+    rainbowMode = false
 }
+
+-- Remove previous GUI if it exists
+for _, v in pairs(CoreGui:GetChildren()) do
+    if v.Name == "BlackHoleAimbotGUI" then
+        v:Destroy()
+    end
+end
 
 -- Create GUI
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AimbotGUI"
-ScreenGui.Parent = player.PlayerGui
+ScreenGui.Name = "BlackHoleAimbotGUI"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 200, 0, 220)
-Frame.Position = UDim2.new(0.85, 0, 0.4, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-Frame.BorderSizePixel = 0
-Frame.Parent = ScreenGui
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 280, 0, 380)
+MainFrame.Position = UDim2.new(0.85, -140, 0.5, -190)
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
 
+-- Add circular gradient for black hole effect
+local BlackHoleEffect = Instance.new("ImageLabel")
+BlackHoleEffect.Size = UDim2.new(1.5, 0, 1.5, 0)
+BlackHoleEffect.Position = UDim2.new(0.5, 0, 0.5, 0)
+BlackHoleEffect.AnchorPoint = Vector2.new(0.5, 0.5)
+BlackHoleEffect.BackgroundTransparency = 1
+BlackHoleEffect.Image = "rbxassetid://4695575676" -- Radial gradient
+BlackHoleEffect.ImageColor3 = Color3.fromRGB(20, 20, 40)
+BlackHoleEffect.Parent = MainFrame
+
+-- Corner rounding
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 10)
+Corner.Parent = MainFrame
+
+-- Title bar with glow effect
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 30)
-TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 TitleBar.BorderSizePixel = 0
-TitleBar.Parent = Frame
+TitleBar.ZIndex = 3
+TitleBar.Parent = MainFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 10)
+TitleCorner.Parent = TitleBar
+
+local TitleGlow = Instance.new("ImageLabel")
+TitleGlow.Size = UDim2.new(1, 0, 1, 0)
+TitleGlow.BackgroundTransparency = 1
+TitleGlow.Image = "rbxassetid://4695575676"
+TitleGlow.ImageColor3 = Color3.fromRGB(100, 50, 255)
+TitleGlow.ImageTransparency = 0.7
+TitleGlow.ZIndex = 2
+TitleGlow.Parent = TitleBar
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 1, 0)
+Title.Size = UDim2.new(1, -10, 1, 0)
+Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "Aimbot Settings"
+Title.Text = "Black Hole Aimbot"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 16
-Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 18
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.ZIndex = 3
 Title.Parent = TitleBar
 
-local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1, 0, 1, -30)
-Content.Position = UDim2.new(0, 0, 0, 30)
+-- Close button
+local CloseButton = Instance.new("TextButton")
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -35, 0, 5)
+CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 16
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.ZIndex = 3
+CloseButton.Parent = TitleBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseButton
+
+-- Content Frame
+local Content = Instance.new("ScrollingFrame")
+Content.Size = UDim2.new(1, -20, 1, -50)
+Content.Position = UDim2.new(0, 10, 0, 45)
 Content.BackgroundTransparency = 1
-Content.Parent = Frame
+Content.BorderSizePixel = 0
+Content.ScrollBarThickness = 4
+Content.ScrollBarImageColor3 = Color3.fromRGB(150, 100, 255)
+Content.CanvasSize = UDim2.new(0, 0, 0, 620) -- Adjust based on content
+Content.Parent = MainFrame
 
--- Enabled Toggle
-local EnabledLabel = Instance.new("TextLabel")
-EnabledLabel.Size = UDim2.new(0.6, 0, 0, 30)
-EnabledLabel.Position = UDim2.new(0.05, 0, 0, 10)
-EnabledLabel.BackgroundTransparency = 1
-EnabledLabel.Text = "Enabled:"
-EnabledLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-EnabledLabel.TextSize = 14
-EnabledLabel.TextXAlignment = Enum.TextXAlignment.Left
-EnabledLabel.Font = Enum.Font.SourceSans
-EnabledLabel.Parent = Content
+-- Create tab buttons
+local TabFrame = Instance.new("Frame")
+TabFrame.Size = UDim2.new(1, 0, 0, 40)
+TabFrame.BackgroundTransparency = 1
+TabFrame.Parent = Content
 
-local EnabledButton = Instance.new("TextButton")
-EnabledButton.Size = UDim2.new(0.25, 0, 0, 20)
-EnabledButton.Position = UDim2.new(0.7, 0, 0, 15)
-EnabledButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-EnabledButton.Text = "OFF"
-EnabledButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-EnabledButton.TextSize = 14
-EnabledButton.Font = Enum.Font.SourceSansBold
-EnabledButton.Parent = Content
+local AimbotTab = CreateTab("Aimbot", 0)
+local ESPTab = CreateTab("ESP", 1/3)
+local SettingsTab = CreateTab("Settings", 2/3)
 
--- Team Check Toggle
-local TeamCheckLabel = Instance.new("TextLabel")
-TeamCheckLabel.Size = UDim2.new(0.6, 0, 0, 30)
-TeamCheckLabel.Position = UDim2.new(0.05, 0, 0, 50)
-TeamCheckLabel.BackgroundTransparency = 1
-TeamCheckLabel.Text = "Team Check:"
-TeamCheckLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TeamCheckLabel.TextSize = 14
-TeamCheckLabel.TextXAlignment = Enum.TextXAlignment.Left
-TeamCheckLabel.Font = Enum.Font.SourceSans
-TeamCheckLabel.Parent = Content
-
-local TeamCheckButton = Instance.new("TextButton")
-TeamCheckButton.Size = UDim2.new(0.25, 0, 0, 20)
-TeamCheckButton.Position = UDim2.new(0.7, 0, 0, 55)
-TeamCheckButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-TeamCheckButton.Text = "ON"
-TeamCheckButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-TeamCheckButton.TextSize = 14
-TeamCheckButton.Font = Enum.Font.SourceSansBold
-TeamCheckButton.Parent = Content
-
--- FOV Slider
-local FOVLabel = Instance.new("TextLabel")
-FOVLabel.Size = UDim2.new(0.6, 0, 0, 30)
-FOVLabel.Position = UDim2.new(0.05, 0, 0, 90)
-FOVLabel.BackgroundTransparency = 1
-FOVLabel.Text = "FOV Size: 100"
-FOVLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-FOVLabel.TextSize = 14
-FOVLabel.TextXAlignment = Enum.TextXAlignment.Left
-FOVLabel.Font = Enum.Font.SourceSans
-FOVLabel.Parent = Content
-
-local FOVSlider = Instance.new("Frame")
-FOVSlider.Size = UDim2.new(0.9, 0, 0, 6)
-FOVSlider.Position = UDim2.new(0.05, 0, 0, 120)
-FOVSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-FOVSlider.BorderSizePixel = 0
-FOVSlider.Parent = Content
-
-local FOVSliderFill = Instance.new("Frame")
-FOVSliderFill.Size = UDim2.new(settings.fov/400, 0, 1, 0)
-FOVSliderFill.BackgroundColor3 = Color3.fromRGB(65, 175, 255)
-FOVSliderFill.BorderSizePixel = 0
-FOVSliderFill.Parent = FOVSlider
-
--- Fixed line 63:
-local FOVSliderButton = Instance.new("TextButton")
-FOVSliderButton.Size = UDim2.new(0, 16, 0, 16)
-FOVSliderButton.AnchorPoint = Vector2.new(0.5, 0.5)
-FOVSliderButton.Position = UDim2.new(settings.fov/400, 0, 0.5, 0)
-FOVSliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-FOVSliderButton.Text = ""
-FOVSliderButton.Parent = FOVSlider
-
--- Show FOV Toggle
-local ShowFOVLabel = Instance.new("TextLabel")
-ShowFOVLabel.Size = UDim2.new(0.6, 0, 0, 30)
-ShowFOVLabel.Position = UDim2.new(0.05, 0, 0, 130)
-ShowFOVLabel.BackgroundTransparency = 1
-ShowFOVLabel.Text = "Show FOV:"
-ShowFOVLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-ShowFOVLabel.TextSize = 14
-ShowFOVLabel.TextXAlignment = Enum.TextXAlignment.Left
-ShowFOVLabel.Font = Enum.Font.SourceSans
-ShowFOVLabel.Parent = Content
-
-local ShowFOVButton = Instance.new("TextButton")
-ShowFOVButton.Size = UDim2.new(0.25, 0, 0, 20)
-ShowFOVButton.Position = UDim2.new(0.7, 0, 0, 135)
-ShowFOVButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-ShowFOVButton.Text = "ON"
-ShowFOVButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ShowFOVButton.TextSize = 14
-ShowFOVButton.Font = Enum.Font.SourceSansBold
-ShowFOVButton.Parent = Content
-
--- Status Label
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(0.9, 0, 0, 20)
-StatusLabel.Position = UDim2.new(0.05, 0, 0, 170)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Press E to toggle aimbot"
-StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-StatusLabel.TextSize = 14
-StatusLabel.TextXAlignment = Enum.TextXAlignment.Center
-StatusLabel.Font = Enum.Font.SourceSans
-StatusLabel.Parent = Content
+-- Sections
+local AimbotSection = CreateSection("AIMBOT SETTINGS", 0, 50)
+local ESPSection = CreateSection("ESP SETTINGS", 0, 50)
+ESPSection.Visible = false
+local SettingsSection = CreateSection("OTHER SETTINGS", 0, 50)
+SettingsSection.Visible = false
 
 -- Create FOV Circle
 local FOVCircle = Instance.new("Frame")
@@ -178,8 +163,63 @@ local FOVCircleCorner = Instance.new("UICorner")
 FOVCircleCorner.CornerRadius = UDim.new(1, 0)
 FOVCircleCorner.Parent = FOVCircle
 
--- Function to update FOV circle position and size
-local function UpdateFOVCircle()
+-- ESP Containers
+local ESPContainer = Instance.new("Folder")
+ESPContainer.Name = "ESPContainer"
+ESPContainer.Parent = ScreenGui
+
+-- Create Aimbot Controls
+local EnabledToggle = CreateToggle(AimbotSection, "Enabled", settings.enabled, 50)
+local TeamCheckToggle = CreateToggle(AimbotSection, "Team Check", settings.teamCheck, 100)
+local FOVVisibilityToggle = CreateToggle(AimbotSection, "Show FOV", settings.showFOV, 150)
+
+local FOVSlider = CreateSlider(AimbotSection, "FOV Size", 10, 400, settings.fov, 200, function(value)
+    settings.fov = value
+    UpdateFOVCircle()
+end)
+
+local SensitivitySlider = CreateSlider(AimbotSection, "Aimbot Speed", 0.1, 1, settings.sensitivity, 280, function(value)
+    settings.sensitivity = value
+end)
+
+local DistanceSlider = CreateSlider(AimbotSection, "Max Distance", 100, 5000, settings.maxDistance, 360, function(value)
+    settings.maxDistance = value
+end)
+
+-- Create ESP Controls
+local ESPToggle = CreateToggle(ESPSection, "ESP Enabled", settings.espEnabled, 50)
+local BoxESPToggle = CreateToggle(ESPSection, "Box ESP", settings.boxESP, 100)
+local NameESPToggle = CreateToggle(ESPSection, "Name ESP", settings.nameESP, 150)
+local DistanceESPToggle = CreateToggle(ESPSection, "Distance ESP", settings.distanceESP, 200)
+local TracerESPToggle = CreateToggle(ESPSection, "Tracer ESP", settings.tracerESP, 250)
+local TeamColorToggle = CreateToggle(ESPSection, "Use Team Colors", settings.espTeamColor, 300)
+
+local ESPColorPicker = CreateColorPicker(ESPSection, "ESP Color", settings.espColor, 350, function(color)
+    settings.espColor = color
+end)
+
+local ESPTransparencySlider = CreateSlider(ESPSection, "ESP Transparency", 0, 1, settings.espTransparency, 430, function(value)
+    settings.espTransparency = value
+end)
+
+-- Create Settings Controls
+local RainbowToggle = CreateToggle(SettingsSection, "Rainbow FOV", settings.rainbowMode, 50)
+local KeybindButton = CreateButton(SettingsSection, "Change Keybind (Current: " .. settings.key.Name .. ")", 100, function()
+    local label = KeybindButton:FindFirstChildOfClass("TextLabel")
+    label.Text = "Press any key..."
+    
+    local connection
+    connection = UserInputService.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            settings.key = input.KeyCode
+            label.Text = "Change Keybind (Current: " .. settings.key.Name .. ")"
+            connection:Disconnect()
+        end
+    end)
+end)
+
+-- Function to update FOV circle
+function UpdateFOVCircle()
     if settings.showFOV then
         FOVCircle.Visible = true
         FOVCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -189,82 +229,88 @@ local function UpdateFOVCircle()
     end
 end
 
--- Update FOV circle immediately
-UpdateFOVCircle()
-
--- GUI button functionality
-EnabledButton.MouseButton1Click:Connect(function()
+-- Toggle functions
+EnabledToggle.MouseButton1Click:Connect(function()
     settings.enabled = not settings.enabled
-    if settings.enabled then
-        EnabledButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-        EnabledButton.Text = "ON"
-        StatusLabel.Text = "Aimbot Active - Press E to lock"
-    else
-        EnabledButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        EnabledButton.Text = "OFF"
-        StatusLabel.Text = "Press E to toggle aimbot"
-    end
+    UpdateToggle(EnabledToggle, settings.enabled)
 end)
 
-TeamCheckButton.MouseButton1Click:Connect(function()
+TeamCheckToggle.MouseButton1Click:Connect(function()
     settings.teamCheck = not settings.teamCheck
-    if settings.teamCheck then
-        TeamCheckButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-        TeamCheckButton.Text = "ON"
-    else
-        TeamCheckButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        TeamCheckButton.Text = "OFF"
-    end
+    UpdateToggle(TeamCheckToggle, settings.teamCheck)
 end)
 
-ShowFOVButton.MouseButton1Click:Connect(function()
+FOVVisibilityToggle.MouseButton1Click:Connect(function()
     settings.showFOV = not settings.showFOV
-    if settings.showFOV then
-        ShowFOVButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-        ShowFOVButton.Text = "ON"
-    else
-        ShowFOVButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        ShowFOVButton.Text = "OFF"
-    end
+    UpdateToggle(FOVVisibilityToggle, settings.showFOV)
     UpdateFOVCircle()
 end)
 
--- FOV Slider Functionality
-local draggingSlider = false
-
-FOVSliderButton.MouseButton1Down:Connect(function()
-    draggingSlider = true
+ESPToggle.MouseButton1Click:Connect(function()
+    settings.espEnabled = not settings.espEnabled
+    UpdateToggle(ESPToggle, settings.espEnabled)
+    UpdateESP()
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingSlider = false
-    end
+BoxESPToggle.MouseButton1Click:Connect(function()
+    settings.boxESP = not settings.boxESP
+    UpdateToggle(BoxESPToggle, settings.boxESP)
 end)
 
-UserInputService.InputChanged:Connect(function(input)
-    if draggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local mousePos = UserInputService:GetMouseLocation()
-        local sliderPos = FOVSlider.AbsolutePosition
-        local sliderSize = FOVSlider.AbsoluteSize
-        
-        local relativeX = math.clamp((mousePos.X - sliderPos.X) / sliderSize.X, 0, 1)
-        FOVSliderFill.Size = UDim2.new(relativeX, 0, 1, 0)
-        
-        -- Fixed slider button position
-        FOVSliderButton.Position = UDim2.new(relativeX, 0, 0.5, 0)
-        
-        -- Update FOV (10-400 range)
-        settings.fov = math.floor(relativeX * 390 + 10)
-        FOVLabel.Text = "FOV Size: " .. settings.fov
-        
-        -- Update FOV circle
-        UpdateFOVCircle()
-    end
+NameESPToggle.MouseButton1Click:Connect(function()
+    settings.nameESP = not settings.nameESP
+    UpdateToggle(NameESPToggle, settings.nameESP)
+end)
+
+DistanceESPToggle.MouseButton1Click:Connect(function()
+    settings.distanceESP = not settings.distanceESP
+    UpdateToggle(DistanceESPToggle, settings.distanceESP)
+end)
+
+TracerESPToggle.MouseButton1Click:Connect(function()
+    settings.tracerESP = not settings.tracerESP
+    UpdateToggle(TracerESPToggle, settings.tracerESP)
+end)
+
+TeamColorToggle.MouseButton1Click:Connect(function()
+    settings.espTeamColor = not settings.espTeamColor
+    UpdateToggle(TeamColorToggle, settings.espTeamColor)
+end)
+
+RainbowToggle.MouseButton1Click:Connect(function()
+    settings.rainbowMode = not settings.rainbowMode
+    UpdateToggle(RainbowToggle, settings.rainbowMode)
+end)
+
+-- Tab switching
+AimbotTab.MouseButton1Click:Connect(function()
+    AimbotSection.Visible = true
+    ESPSection.Visible = false
+    SettingsSection.Visible = false
+    UpdateTabSelection(AimbotTab, ESPTab, SettingsTab)
+end)
+
+ESPTab.MouseButton1Click:Connect(function()
+    AimbotSection.Visible = false
+    ESPSection.Visible = true
+    SettingsSection.Visible = false
+    UpdateTabSelection(ESPTab, AimbotTab, SettingsTab)
+end)
+
+SettingsTab.MouseButton1Click:Connect(function()
+    AimbotSection.Visible = false
+    ESPSection.Visible = false
+    SettingsSection.Visible = true
+    UpdateTabSelection(SettingsTab, AimbotTab, ESPTab)
+end)
+
+-- Close button functionality
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
 end)
 
 -- Function to check if a player is in FOV
-local function isInFOV(targetPlayer)
+function isInFOV(targetPlayer)
     local screenPos, onScreen = camera:WorldToScreenPoint(targetPlayer.Character.Head.Position)
     if not onScreen then return false end
     
@@ -275,7 +321,7 @@ local function isInFOV(targetPlayer)
 end
 
 -- Function to check if a player is valid to target
-local function isValidTarget(targetPlayer)
+function isValidTarget(targetPlayer)
     if targetPlayer == player then return false end
     if targetPlayer.Character == nil then return false end
     if not targetPlayer.Character:FindFirstChild("Head") then return false end
@@ -302,7 +348,7 @@ local function isValidTarget(targetPlayer)
 end
 
 -- Function to get closest player
-local function getClosestPlayer()
+function getClosestPlayer()
     local closestPlayer = nil
     local shortestDistance = settings.maxDistance
     local closestScreenDistance = settings.fov
@@ -334,6 +380,88 @@ local function getClosestPlayer()
     return closestPlayer
 end
 
+-- ESP Functions
+function CreateESPItem(player)
+    if player == Players.LocalPlayer then return end
+    
+    local ESPFolder = Instance.new("Folder")
+    ESPFolder.Name = player.Name
+    ESPFolder.Parent = ESPContainer
+    
+    -- Box ESP
+    local Box = Instance.new("Frame")
+    Box.Name = "Box"
+    Box.BackgroundTransparency = 1
+    Box.BorderSizePixel = 0
+    Box.Size = UDim2.new(0, 0, 0, 0)
+    Box.Parent = ESPFolder
+    
+    local BoxOutline = Instance.new("UIStroke")
+    BoxOutline.Thickness = 2
+    BoxOutline.Color = settings.espColor
+    BoxOutline.Parent = Box
+    
+    -- Name ESP
+    local NameLabel = Instance.new("TextLabel")
+    NameLabel.Name = "NameLabel"
+    NameLabel.BackgroundTransparency = 1
+    NameLabel.Size = UDim2.new(0, 200, 0, 20)
+    NameLabel.Font = Enum.Font.GothamBold
+    NameLabel.TextSize = 14
+    NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    NameLabel.TextStrokeTransparency = 0.5
+    NameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    NameLabel.Text = player.Name
+    NameLabel.Parent = ESPFolder
+    
+    -- Distance ESP
+    local DistanceLabel = Instance.new("TextLabel")
+    DistanceLabel.Name = "DistanceLabel"
+    DistanceLabel.BackgroundTransparency = 1
+    DistanceLabel.Size = UDim2.new(0, 200, 0, 20)
+    DistanceLabel.Font = Enum.Font.Gotham
+    DistanceLabel.TextSize = 12
+    DistanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    DistanceLabel.TextStrokeTransparency = 0.5
+    DistanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    DistanceLabel.Parent = ESPFolder
+    
+    -- Tracer ESP
+    local Tracer = Instance.new("Frame")
+    Tracer.Name = "Tracer"
+    Tracer.BackgroundColor3 = settings.espColor
+    Tracer.BorderSizePixel = 0
+    Tracer.AnchorPoint = Vector2.new(0.5, 0)
+    Tracer.Parent = ESPFolder
+    
+    return ESPFolder
+end
+
+function UpdateESP()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= player then
+            local folder = ESPContainer:FindFirstChild(p.Name)
+            if not folder and settings.espEnabled then
+                CreateESPItem(p)
+            end
+        end
+    end
+end
+
+-- Connect player events
+Players.PlayerAdded:Connect(function(p)
+    if settings.espEnabled then
+        CreateESPItem(p)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+    local folder = ESPContainer:FindFirstChild(p.Name)
+    if folder then
+        folder:Destroy()
+    end
+end)
+
 -- Target locking variables
 local targetPlayer = nil
 local isAiming = false
@@ -348,23 +476,147 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if isAiming then
             targetPlayer = getClosestPlayer()
             if targetPlayer then
-                StatusLabel.Text = "Locked on: " .. targetPlayer.Name
+                local label = CreateStatusLabel("Locked on: " .. targetPlayer.Name)
+                task.delay(2, function()
+                    label:Destroy()
+                end)
             else
-                StatusLabel.Text = "No valid target found"
+                local label = CreateStatusLabel("No valid target found")
+                task.delay(2, function()
+                    label:Destroy()
+                end)
                 isAiming = false
             end
         else
-            StatusLabel.Text = "Aimbot Active - Press E to lock"
+            local label = CreateStatusLabel("Aimbot deactivated")
+            task.delay(2, function()
+                label:Destroy()
+            end)
             targetPlayer = nil
         end
     end
 end)
 
--- Aiming logic
+-- Update ESP
 RunService.RenderStepped:Connect(function()
     -- Always update FOV circle position to center of screen
     FOVCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
     
+    -- Rainbow FOV effect
+    if settings.rainbowMode then
+        local hue = tick() % 5 / 5
+        local color = Color3.fromHSV(hue, 1, 1)
+        FOVCircleOutline.Color = color
+    else
+        FOVCircleOutline.Color = Color3.fromRGB(65, 175, 255)
+    end
+    
+    -- Update ESP
+    if settings.espEnabled then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= player and p.Character and p.Character:FindFirstChild("Head") and p.Character:FindFirstChild("HumanoidRootPart") then
+                local folder = ESPContainer:FindFirstChild(p.Name)
+                if not folder then
+                    folder = CreateESPItem(p)
+                end
+                
+                local isTeammate = (settings.teamCheck and p.Team == player.Team)
+                local color = settings.espColor
+                
+                if settings.espTeamColor and p.Team then
+                    color = p.Team.TeamColor.Color
+                elseif isTeammate then
+                    color = Color3.fromRGB(0, 255, 0)
+                end
+                
+                -- Get character positions
+                local headPos = p.Character.Head.Position
+                local rootPos = p.Character.HumanoidRootPart.Position
+                local legPos = rootPos - Vector3.new(0, 3, 0)
+                
+                local rootScreenPos, rootOnScreen = camera:WorldToScreenPoint(rootPos)
+                local headScreenPos = camera:WorldToScreenPoint(headPos)
+                local legScreenPos = camera:WorldToScreenPoint(legPos)
+                
+                if rootOnScreen then
+                    -- Box ESP
+                    local box = folder:FindFirstChild("Box")
+                    if box and settings.boxESP then
+                        box.Visible = true
+                        
+                        local sizeX = math.abs(headScreenPos.Y - legScreenPos.Y) / 2
+                        local sizeY = math.abs(headScreenPos.Y - legScreenPos.Y)
+                        
+                        box.Size = UDim2.new(0, sizeX, 0, sizeY)
+                        box.Position = UDim2.new(0, rootScreenPos.X - sizeX/2, 0, rootScreenPos.Y - sizeY/2)
+                        box.UIStroke.Color = color
+                        box.UIStroke.Transparency = settings.espTransparency
+                    elseif box then
+                        box.Visible = false
+                    end
+                    
+                    -- Name ESP
+                    local nameLabel = folder:FindFirstChild("NameLabel")
+                    if nameLabel and settings.nameESP then
+                        nameLabel.Visible = true
+                        nameLabel.Position = UDim2.new(0, rootScreenPos.X - nameLabel.Size.X.Offset/2, 0, headScreenPos.Y - 40)
+                        nameLabel.TextColor3 = color
+                        nameLabel.TextTransparency = settings.espTransparency
+                    elseif nameLabel then
+                        nameLabel.Visible = false
+                    end
+                    
+                    -- Distance ESP
+                    local distanceLabel = folder:FindFirstChild("DistanceLabel")
+                    if distanceLabel and settings.distanceESP then
+                        local distance = math.floor((rootPos - camera.CFrame.Position).Magnitude)
+                        distanceLabel.Visible = true
+                        distanceLabel.Text = tostring(distance) .. " studs"
+                        distanceLabel.Position = UDim2.new(0, rootScreenPos.X - distanceLabel.Size.X.Offset/2, 0, legScreenPos.Y + 5)
+                        distanceLabel.TextColor3 = color
+                        distanceLabel.TextTransparency = settings.espTransparency
+                    elseif distanceLabel then
+                        distanceLabel.Visible = false
+                    end
+                    
+                    -- Tracer ESP
+                    local tracer = folder:FindFirstChild("Tracer")
+                    if tracer and settings.tracerESP then
+                        tracer.Visible = true
+                        
+                        local from = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y)
+                        local to = Vector2.new(rootScreenPos.X, rootScreenPos.Y)
+                        
+                        local distance = (to - from).Magnitude
+                        tracer.Size = UDim2.new(0, 1, 0, distance)
+                        tracer.Position = UDim2.new(0, from.X, 0, from.Y)
+                        
+                        local angle = math.atan2(to.Y - from.Y, to.X - from.X)
+                        tracer.Rotation = math.deg(angle) - 90
+                        
+                        tracer.BackgroundColor3 = color
+                        tracer.BackgroundTransparency = settings.espTransparency
+                    elseif tracer then
+                        tracer.Visible = false
+                    end
+                else
+                    -- Hide ESP when off screen
+                    for _, item in pairs(folder:GetChildren()) do
+                        item.Visible = false
+                    end
+                end
+            end
+        end
+    else
+        -- Hide all ESP
+        for _, folder in pairs(ESPContainer:GetChildren()) do
+            for _, item in pairs(folder:GetChildren()) do
+                item.Visible = false
+            end
+        end
+    end
+    
+    -- Aimbot logic
     if isAiming and targetPlayer and settings.enabled then
         if isValidTarget(targetPlayer) then
             local targetPosition = targetPlayer.Character.Head.Position
@@ -376,10 +628,18 @@ RunService.RenderStepped:Connect(function()
             -- Target no longer valid
             isAiming = false
             targetPlayer = nil
-            StatusLabel.Text = "Target lost"
+            local label = CreateStatusLabel("Target lost")
+            task.delay(2, function()
+                label:Destroy()
+            end)
         end
     end
 end)
+
+-- Initialize
+UpdateFOVCircle()
+UpdateESP()
+UpdateTabSelection(AimbotTab, ESPTab, SettingsTab)
 
 -- Make GUI draggable
 local dragging = false
@@ -389,14 +649,14 @@ local startPos
 
 local function updateDrag(input)
     local delta = input.Position - dragStart
-    Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 end
 
 TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
         dragStart = input.Position
-        startPos = Frame.Position
+        startPos = MainFrame.Position
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 dragging = false
