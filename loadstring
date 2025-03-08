@@ -6,272 +6,476 @@ local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 local mouse = player:GetMouse()
 
+-- Drawing library elements
+local drawings = {}
+
 -- Aimbot settings
 local settings = {
-    enabled = false,
-    key = Enum.KeyCode.E,
-    teamCheck = true,  -- Won't target teammates
-    maxDistance = 1000, -- Maximum distance to detect players
-    sensitivity = 0.5, -- Lower value = smoother camera movement
-    fov = 100, -- Field of view for targeting (in pixels)
-    showFOV = true, -- Show FOV circle
+    enabled = true,
+    aimbot_fov = 100,
+    smoothing = 5,
+    smoothing_type = "Linear",
+    randomization = 0,
+    deadzone_fov = 1,
+    aimbot_key = Enum.KeyCode.Mouse1,
+    hitscan_priority = "Head",
+    hitscan_points = 5,
+    adjust_for_drop = false,
+    target_prediction = false,
+    enlarge_hitboxes = false,
+    
+    -- Trigger Bot
+    trigger_enabled = true,
+    trigger_hitboxes = true,
+    trigger_when_aiming = true,
+    aim_percentage = 15,
+    bullet_redirection = false,
+    silent_aim = true,
+    silent_aim_fov = 200,
+    hit_chance = 30,
+    accuracy = 90,
+    hitscan_priority_trigger = "Head",
+    hitscan_points_trigger = 5,
+    
+    -- Recoil Control
+    recoil_control = true,
+    weapon_rcs = 10,
+    recoil_control_x = 80,
+    recoil_control_y = 10
 }
 
--- Create GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AimbotGUI"
-ScreenGui.Parent = player.PlayerGui
+-- Create Drawing UI
+local function createDrawingElement(type, properties)
+    local element = Drawing.new(type)
+    for property, value in pairs(properties) do
+        element[property] = value
+    end
+    return element
+end
 
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 200, 0, 220)
-Frame.Position = UDim2.new(0.85, 0, 0.4, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-Frame.BorderSizePixel = 0
-Frame.Parent = ScreenGui
+-- Create menu structure
+local function createMenu()
+    -- Menu background
+    drawings.background = createDrawingElement("Square", {
+        Size = Vector2.new(550, 350),
+        Position = Vector2.new(50, 50),
+        Color = Color3.fromRGB(25, 25, 25),
+        Filled = true,
+        Visible = true,
+        Transparency = 0.9,
+    })
+    
+    -- Title bar
+    drawings.titleBar = createDrawingElement("Square", {
+        Size = Vector2.new(550, 30),
+        Position = Vector2.new(50, 50),
+        Color = Color3.fromRGB(35, 35, 35),
+        Filled = true,
+        Visible = true,
+        Transparency = 0.9,
+    })
+    
+    -- Title text
+    drawings.titleText = createDrawingElement("Text", {
+        Text = "Abyss V3",
+        Position = Vector2.new(70, 56),
+        Color = Color3.fromRGB(255, 255, 255),
+        Size = 16,
+        Font = 3, -- Use an available font
+        Outline = true,
+        Visible = true,
+    })
+    
+    -- Create tabs
+    local tabs = {"Main", "Rage", "Visuals", "Misc", "Settings"}
+    local tabWidth = 100
+    local startX = 65
+    
+    drawings.tabs = {}
+    drawings.tabTexts = {}
+    
+    for i, tabName in ipairs(tabs) do
+        drawings.tabs[i] = createDrawingElement("Square", {
+            Size = Vector2.new(tabWidth, 25),
+            Position = Vector2.new(startX + (i-1) * (tabWidth + 5), 85),
+            Color = tabName == "Main" and Color3.fromRGB(65, 105, 225) or Color3.fromRGB(45, 45, 45),
+            Filled = true,
+            Visible = true,
+            Transparency = 0.9,
+        })
+        
+        drawings.tabTexts[i] = createDrawingElement("Text", {
+            Text = tabName,
+            Position = Vector2.new(startX + (i-1) * (tabWidth + 5) + 35, 89),
+            Color = Color3.fromRGB(255, 255, 255),
+            Size = 14,
+            Font = 3,
+            Center = true,
+            Outline = true,
+            Visible = true,
+        })
+    end
+    
+    -- Content area
+    drawings.contentArea = createDrawingElement("Square", {
+        Size = Vector2.new(530, 270),
+        Position = Vector2.new(60, 115),
+        Color = Color3.fromRGB(30, 30, 30),
+        Filled = true,
+        Visible = true,
+        Transparency = 0.9,
+    })
+    
+    -- Create two columns
+    local columnWidth = 240
+    
+    -- Left column (Aim Assist)
+    drawings.leftColumn = createDrawingElement("Square", {
+        Size = Vector2.new(columnWidth, 260),
+        Position = Vector2.new(65, 120),
+        Color = Color3.fromRGB(35, 35, 35),
+        Filled = true,
+        Visible = true,
+        Transparency = 0.9,
+    })
+    
+    drawings.leftColumnTitle = createDrawingElement("Text", {
+        Text = "Aim Assist",
+        Position = Vector2.new(65 + columnWidth/2, 125),
+        Color = Color3.fromRGB(255, 255, 255),
+        Size = 15,
+        Font = 3,
+        Center = true,
+        Outline = true,
+        Visible = true,
+    })
+    
+    -- Right column (Trigger Bot)
+    drawings.rightColumn = createDrawingElement("Square", {
+        Size = Vector2.new(columnWidth, 260),
+        Position = Vector2.new(65 + columnWidth + 20, 120),
+        Color = Color3.fromRGB(35, 35, 35),
+        Filled = true,
+        Visible = true,
+        Transparency = 0.9,
+    })
+    
+    drawings.rightColumnTitle = createDrawingElement("Text", {
+        Text = "Trigger Bot",
+        Position = Vector2.new(65 + columnWidth + 20 + columnWidth/2, 125),
+        Color = Color3.fromRGB(255, 255, 255),
+        Size = 15,
+        Font = 3,
+        Center = true,
+        Outline = true,
+        Visible = true,
+    })
+    
+    -- Create settings items for left column (Aim Assist)
+    local leftItems = {
+        {name = "Enabled", value = settings.enabled, type = "toggle"},
+        {name = "Aimbot FOV", value = settings.aimbot_fov .. "°/250°", type = "slider"},
+        {name = "Smoothing", value = settings.smoothing .. "/10", type = "slider"},
+        {name = "Smoothing Type", value = settings.smoothing_type, type = "dropdown"},
+        {name = "Randomization", value = settings.randomization .. "/20", type = "slider"},
+        {name = "Deadzone FOV", value = settings.deadzone_fov .. "/10", type = "slider"},
+        {name = "Aimbot Key", value = "Mouse 1", type = "keybind"},
+        {name = "Hitscan Priority", value = settings.hitscan_priority, type = "dropdown"},
+        {name = "Hitscan Points", value = settings.hitscan_points, type = "slider"},
+        {name = "Adjust for Bullet Drop", value = settings.adjust_for_drop, type = "toggle"},
+        {name = "Target Prediction", value = settings.target_prediction, type = "toggle"},
+        {name = "Enlarge Enemy Hitboxes", value = settings.enlarge_hitboxes, type = "toggle"}
+    }
+    
+    -- Create settings items for right column (Trigger Bot)
+    local rightItems = {
+        {name = "Enabled", value = settings.trigger_enabled, type = "toggle"},
+        {name = "Trigger Hitboxes", value = settings.trigger_hitboxes, type = "toggle"},
+        {name = "Trigger when Aiming", value = settings.trigger_when_aiming, type = "toggle"},
+        {name = "Aim Percentage", value = settings.aim_percentage .. "/100%", type = "slider"},
+        {name = "Bullet Redirection", value = settings.bullet_redirection, type = "toggle"},
+        {name = "Silent Aim", value = settings.silent_aim, type = "toggle"},
+        {name = "Silent Aim FOV", value = settings.silent_aim_fov .. "°/250°", type = "slider"},
+        {name = "Hit Chance", value = settings.hit_chance .. "/100%", type = "slider"},
+        {name = "Accuracy", value = settings.accuracy .. "/100%", type = "slider"},
+        {name = "Hitscan Priority", value = settings.hitscan_priority_trigger, type = "dropdown"},
+        {name = "Hitscan Points", value = settings.hitscan_points_trigger, type = "slider"}
+    }
+    
+    -- Draw left column items
+    drawings.leftItems = {}
+    for i, item in ipairs(leftItems) do
+        local yPos = 145 + (i-1) * 22
+        
+        -- Item label
+        drawings.leftItems[i] = {
+            label = createDrawingElement("Text", {
+                Text = item.name,
+                Position = Vector2.new(75, yPos),
+                Color = Color3.fromRGB(255, 255, 255),
+                Size = 14,
+                Font = 2,
+                Outline = true,
+                Visible = true,
+            })
+        }
+        
+        -- Item value (toggle, slider, etc.)
+        if item.type == "toggle" then
+            local color = item.value and Color3.fromRGB(65, 175, 65) : Color3.fromRGB(175, 65, 65)
+            drawings.leftItems[i].value = createDrawingElement("Square", {
+                Size = Vector2.new(15, 15),
+                Position = Vector2.new(280, yPos),
+                Color = color,
+                Filled = true,
+                Visible = true,
+                Transparency = 1,
+            })
+        elseif item.type == "slider" or item.type == "dropdown" or item.type == "keybind" then
+            drawings.leftItems[i].value = createDrawingElement("Text", {
+                Text = tostring(item.value),
+                Position = Vector2.new(280, yPos),
+                Color = Color3.fromRGB(150, 150, 255),
+                Size = 14,
+                Font = 2,
+                Outline = true,
+                Visible = true,
+            })
+        end
+    end
+    
+    -- Draw right column items
+    drawings.rightItems = {}
+    for i, item in ipairs(rightItems) do
+        local yPos = 145 + (i-1) * 22
+        
+        -- Item label
+        drawings.rightItems[i] = {
+            label = createDrawingElement("Text", {
+                Text = item.name,
+                Position = Vector2.new(75 + columnWidth + 20, yPos),
+                Color = Color3.fromRGB(255, 255, 255),
+                Size = 14,
+                Font = 2,
+                Outline = true,
+                Visible = true,
+            })
+        }
+        
+        -- Item value (toggle, slider, etc.)
+        if item.type == "toggle" then
+            local color = item.value and Color3.fromRGB(65, 175, 65) : Color3.fromRGB(175, 65, 65)
+            drawings.rightItems[i].value = createDrawingElement("Square", {
+                Size = Vector2.new(15, 15),
+                Position = Vector2.new(280 + columnWidth + 20, yPos),
+                Color = color,
+                Filled = true,
+                Visible = true,
+                Transparency = 1,
+            })
+        elseif item.type == "slider" or item.type == "dropdown" then
+            drawings.rightItems[i].value = createDrawingElement("Text", {
+                Text = tostring(item.value),
+                Position = Vector2.new(280 + columnWidth + 20, yPos),
+                Color = Color3.fromRGB(150, 150, 255),
+                Size = 14,
+                Font = 2,
+                Outline = true,
+                Visible = true,
+            })
+        end
+    end
+    
+    -- Create FOV circle
+    drawings.fovCircle = createDrawingElement("Circle", {
+        Radius = settings.aimbot_fov,
+        Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2),
+        Color = Color3.fromRGB(65, 175, 255),
+        Thickness = 1.5,
+        NumSides = 48,
+        Filled = false,
+        Visible = true,
+        Transparency = 0.6,
+    })
+    
+    -- Create silent aim FOV circle
+    drawings.silentFovCircle = createDrawingElement("Circle", {
+        Radius = settings.silent_aim_fov,
+        Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2),
+        Color = Color3.fromRGB(255, 100, 100),
+        Thickness = 1,
+        NumSides = 48,
+        Filled = false,
+        Visible = settings.silent_aim,
+        Transparency = 0.4,
+    })
+}
 
-local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 30)
-TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-TitleBar.BorderSizePixel = 0
-TitleBar.Parent = Frame
+-- Menu dragging functionality
+local isDragging = false
+local dragOffset = Vector2.new(0, 0)
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 1, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "Aimbot Settings"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 16
-Title.Font = Enum.Font.SourceSansBold
-Title.Parent = TitleBar
-
-local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1, 0, 1, -30)
-Content.Position = UDim2.new(0, 0, 0, 30)
-Content.BackgroundTransparency = 1
-Content.Parent = Frame
-
--- Enabled Toggle
-local EnabledLabel = Instance.new("TextLabel")
-EnabledLabel.Size = UDim2.new(0.6, 0, 0, 30)
-EnabledLabel.Position = UDim2.new(0.05, 0, 0, 10)
-EnabledLabel.BackgroundTransparency = 1
-EnabledLabel.Text = "Enabled:"
-EnabledLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-EnabledLabel.TextSize = 14
-EnabledLabel.TextXAlignment = Enum.TextXAlignment.Left
-EnabledLabel.Font = Enum.Font.SourceSans
-EnabledLabel.Parent = Content
-
-local EnabledButton = Instance.new("TextButton")
-EnabledButton.Size = UDim2.new(0.25, 0, 0, 20)
-EnabledButton.Position = UDim2.new(0.7, 0, 0, 15)
-EnabledButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-EnabledButton.Text = "OFF"
-EnabledButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-EnabledButton.TextSize = 14
-EnabledButton.Font = Enum.Font.SourceSansBold
-EnabledButton.Parent = Content
-
--- Team Check Toggle
-local TeamCheckLabel = Instance.new("TextLabel")
-TeamCheckLabel.Size = UDim2.new(0.6, 0, 0, 30)
-TeamCheckLabel.Position = UDim2.new(0.05, 0, 0, 50)
-TeamCheckLabel.BackgroundTransparency = 1
-TeamCheckLabel.Text = "Team Check:"
-TeamCheckLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TeamCheckLabel.TextSize = 14
-TeamCheckLabel.TextXAlignment = Enum.TextXAlignment.Left
-TeamCheckLabel.Font = Enum.Font.SourceSans
-TeamCheckLabel.Parent = Content
-
-local TeamCheckButton = Instance.new("TextButton")
-TeamCheckButton.Size = UDim2.new(0.25, 0, 0, 20)
-TeamCheckButton.Position = UDim2.new(0.7, 0, 0, 55)
-TeamCheckButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-TeamCheckButton.Text = "ON"
-TeamCheckButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-TeamCheckButton.TextSize = 14
-TeamCheckButton.Font = Enum.Font.SourceSansBold
-TeamCheckButton.Parent = Content
-
--- FOV Slider
-local FOVLabel = Instance.new("TextLabel")
-FOVLabel.Size = UDim2.new(0.6, 0, 0, 30)
-FOVLabel.Position = UDim2.new(0.05, 0, 0, 90)
-FOVLabel.BackgroundTransparency = 1
-FOVLabel.Text = "FOV Size: 100"
-FOVLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-FOVLabel.TextSize = 14
-FOVLabel.TextXAlignment = Enum.TextXAlignment.Left
-FOVLabel.Font = Enum.Font.SourceSans
-FOVLabel.Parent = Content
-
-local FOVSlider = Instance.new("Frame")
-FOVSlider.Size = UDim2.new(0.9, 0, 0, 6)
-FOVSlider.Position = UDim2.new(0.05, 0, 0, 120)
-FOVSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-FOVSlider.BorderSizePixel = 0
-FOVSlider.Parent = Content
-
-local FOVSliderFill = Instance.new("Frame")
-FOVSliderFill.Size = UDim2.new(settings.fov/400, 0, 1, 0)
-FOVSliderFill.BackgroundColor3 = Color3.fromRGB(65, 175, 255)
-FOVSliderFill.BorderSizePixel = 0
-FOVSliderFill.Parent = FOVSlider
-
--- Fixed line 63:
-local FOVSliderButton = Instance.new("TextButton")
-FOVSliderButton.Size = UDim2.new(0, 16, 0, 16)
-FOVSliderButton.AnchorPoint = Vector2.new(0.5, 0.5)
-FOVSliderButton.Position = UDim2.new(settings.fov/400, 0, 0.5, 0)
-FOVSliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-FOVSliderButton.Text = ""
-FOVSliderButton.Parent = FOVSlider
-
--- Show FOV Toggle
-local ShowFOVLabel = Instance.new("TextLabel")
-ShowFOVLabel.Size = UDim2.new(0.6, 0, 0, 30)
-ShowFOVLabel.Position = UDim2.new(0.05, 0, 0, 130)
-ShowFOVLabel.BackgroundTransparency = 1
-ShowFOVLabel.Text = "Show FOV:"
-ShowFOVLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-ShowFOVLabel.TextSize = 14
-ShowFOVLabel.TextXAlignment = Enum.TextXAlignment.Left
-ShowFOVLabel.Font = Enum.Font.SourceSans
-ShowFOVLabel.Parent = Content
-
-local ShowFOVButton = Instance.new("TextButton")
-ShowFOVButton.Size = UDim2.new(0.25, 0, 0, 20)
-ShowFOVButton.Position = UDim2.new(0.7, 0, 0, 135)
-ShowFOVButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-ShowFOVButton.Text = "ON"
-ShowFOVButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ShowFOVButton.TextSize = 14
-ShowFOVButton.Font = Enum.Font.SourceSansBold
-ShowFOVButton.Parent = Content
-
--- Status Label
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(0.9, 0, 0, 20)
-StatusLabel.Position = UDim2.new(0.05, 0, 0, 170)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Press E to toggle aimbot"
-StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-StatusLabel.TextSize = 14
-StatusLabel.TextXAlignment = Enum.TextXAlignment.Center
-StatusLabel.Font = Enum.Font.SourceSans
-StatusLabel.Parent = Content
-
--- Create FOV Circle
-local FOVCircle = Instance.new("Frame")
-FOVCircle.Size = UDim2.new(0, 0, 0, 0) -- Set by UpdateFOVCircle function
-FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-FOVCircle.BackgroundTransparency = 1
-FOVCircle.Parent = ScreenGui
-
-local FOVCircleOutline = Instance.new("UIStroke")
-FOVCircleOutline.Color = Color3.fromRGB(65, 175, 255)
-FOVCircleOutline.Thickness = 2
-FOVCircleOutline.Parent = FOVCircle
-
-local FOVCircleCorner = Instance.new("UICorner")
-FOVCircleCorner.CornerRadius = UDim.new(1, 0)
-FOVCircleCorner.Parent = FOVCircle
-
--- Function to update FOV circle position and size
-local function UpdateFOVCircle()
-    if settings.showFOV then
-        FOVCircle.Visible = true
-        FOVCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
-        FOVCircle.Size = UDim2.new(0, settings.fov * 2, 0, settings.fov * 2)
-    else
-        FOVCircle.Visible = false
+local function updateMenuPosition(newPosition)
+    local offset = Vector2.new(0, 0)
+    
+    drawings.background.Position = newPosition
+    drawings.titleBar.Position = newPosition
+    drawings.titleText.Position = Vector2.new(newPosition.X + 20, newPosition.Y + 6)
+    
+    -- Update tabs
+    local tabWidth = 100
+    local startX = newPosition.X + 15
+    
+    for i, tab in ipairs(drawings.tabs) do
+        tab.Position = Vector2.new(startX + (i-1) * (tabWidth + 5), newPosition.Y + 35)
+        drawings.tabTexts[i].Position = Vector2.new(startX + (i-1) * (tabWidth + 5) + 35, newPosition.Y + 39)
+    end
+    
+    -- Update content area
+    drawings.contentArea.Position = Vector2.new(newPosition.X + 10, newPosition.Y + 65)
+    
+    -- Update columns
+    local columnWidth = 240
+    drawings.leftColumn.Position = Vector2.new(newPosition.X + 15, newPosition.Y + 70)
+    drawings.leftColumnTitle.Position = Vector2.new(newPosition.X + 15 + columnWidth/2, newPosition.Y + 75)
+    
+    drawings.rightColumn.Position = Vector2.new(newPosition.X + 15 + columnWidth + 20, newPosition.Y + 70)
+    drawings.rightColumnTitle.Position = Vector2.new(newPosition.X + 15 + columnWidth + 20 + columnWidth/2, newPosition.Y + 75)
+    
+    -- Update items
+    for i, item in ipairs(drawings.leftItems) do
+        local yPos = newPosition.Y + 95 + (i-1) * 22
+        item.label.Position = Vector2.new(newPosition.X + 25, yPos)
+        
+        if item.value then
+            if typeof(item.value) == "table" then
+                item.value.Position = Vector2.new(newPosition.X + 230, yPos)
+            else
+                item.value.Position = Vector2.new(newPosition.X + 230, yPos)
+            end
+        end
+    end
+    
+    for i, item in ipairs(drawings.rightItems) do
+        local yPos = newPosition.Y + 95 + (i-1) * 22
+        item.label.Position = Vector2.new(newPosition.X + 25 + columnWidth + 20, yPos)
+        
+        if item.value then
+            if typeof(item.value) == "table" then
+                item.value.Position = Vector2.new(newPosition.X + 230 + columnWidth + 20, yPos)
+            else
+                item.value.Position = Vector2.new(newPosition.X + 230 + columnWidth + 20, yPos)
+            end
+        end
     end
 end
 
--- Update FOV circle immediately
-UpdateFOVCircle()
-
--- GUI button functionality
-EnabledButton.MouseButton1Click:Connect(function()
-    settings.enabled = not settings.enabled
-    if settings.enabled then
-        EnabledButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-        EnabledButton.Text = "ON"
-        StatusLabel.Text = "Aimbot Active - Press E to lock"
-    else
-        EnabledButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        EnabledButton.Text = "OFF"
-        StatusLabel.Text = "Press E to toggle aimbot"
-    end
-end)
-
-TeamCheckButton.MouseButton1Click:Connect(function()
-    settings.teamCheck = not settings.teamCheck
-    if settings.teamCheck then
-        TeamCheckButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-        TeamCheckButton.Text = "ON"
-    else
-        TeamCheckButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        TeamCheckButton.Text = "OFF"
-    end
-end)
-
-ShowFOVButton.MouseButton1Click:Connect(function()
-    settings.showFOV = not settings.showFOV
-    if settings.showFOV then
-        ShowFOVButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-        ShowFOVButton.Text = "ON"
-    else
-        ShowFOVButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        ShowFOVButton.Text = "OFF"
-    end
-    UpdateFOVCircle()
-end)
-
--- FOV Slider Functionality
-local draggingSlider = false
-
-FOVSliderButton.MouseButton1Down:Connect(function()
-    draggingSlider = true
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingSlider = false
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if draggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local mousePos = UserInputService:GetMouseLocation()
-        local sliderPos = FOVSlider.AbsolutePosition
-        local sliderSize = FOVSlider.AbsoluteSize
+-- Handle mouse input for dragging
+local function handleMouseInput()
+    UserInputService.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local mousePos = UserInputService:GetMouseLocation()
+            
+            -- Check if clicking in the title bar area
+            if mousePos.X >= drawings.titleBar.Position.X and 
+               mousePos.X <= drawings.titleBar.Position.X + drawings.titleBar.Size.X and
+               mousePos.Y >= drawings.titleBar.Position.Y and
+               mousePos.Y <= drawings.titleBar.Position.Y + drawings.titleBar.Size.Y then
+                
+                isDragging = true
+                dragOffset = drawings.titleBar.Position - mousePos
+            end
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isDragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mousePos = UserInputService:GetMouseLocation()
+            updateMenuPosition(mousePos + dragOffset)
+        end
+    end)
+    
+    -- Update FOV circle positions on camera changes
+    RunService.RenderStepped:Connect(function()
+        if drawings.fovCircle then
+            drawings.fovCircle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+        end
         
-        local relativeX = math.clamp((mousePos.X - sliderPos.X) / sliderSize.X, 0, 1)
-        FOVSliderFill.Size = UDim2.new(relativeX, 0, 1, 0)
-        
-        -- Fixed slider button position
-        FOVSliderButton.Position = UDim2.new(relativeX, 0, 0.5, 0)
-        
-        -- Update FOV (10-400 range)
-        settings.fov = math.floor(relativeX * 390 + 10)
-        FOVLabel.Text = "FOV Size: " .. settings.fov
-        
-        -- Update FOV circle
-        UpdateFOVCircle()
+        if drawings.silentFovCircle then
+            drawings.silentFovCircle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+        end
+    end)
+}
+
+-- Toggling the visibility of the menu
+local menuVisible = true
+local function toggleMenu()
+    menuVisible = not menuVisible
+    
+    for _, drawing in pairs(drawings) do
+        if typeof(drawing) == "table" then
+            for _, subDrawing in pairs(drawing) do
+                if typeof(subDrawing) == "table" and subDrawing.label then
+                    subDrawing.label.Visible = menuVisible
+                    if subDrawing.value then
+                        subDrawing.value.Visible = menuVisible
+                    end
+                else
+                    if subDrawing.Visible ~= nil then
+                        subDrawing.Visible = menuVisible
+                    end
+                end
+            end
+        else
+            if drawing ~= drawings.fovCircle and drawing ~= drawings.silentFovCircle then
+                drawing.Visible = menuVisible
+            end
+        end
+    end
+    
+    -- FOV circles should remain visible based on settings
+    if drawings.fovCircle then
+        drawings.fovCircle.Visible = settings.enabled
+    end
+    
+    if drawings.silentFovCircle then
+        drawings.silentFovCircle.Visible = settings.silent_aim and settings.trigger_enabled
+    end
+}
+
+-- Toggle menu with Insert key
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.Insert then
+        toggleMenu()
     end
 end)
 
+-- Initialize the menu
+local function initializeMenu()
+    createMenu()
+    handleMouseInput()
+    
+    print("Aimbot GUI initialized. Press Insert to toggle menu visibility.")
+end
+
+initializeMenu()
+
+-- Aimbot functionality
 -- Function to check if a player is in FOV
-local function isInFOV(targetPlayer)
+local function isInFOV(targetPlayer, fovSize)
     local screenPos, onScreen = camera:WorldToScreenPoint(targetPlayer.Character.Head.Position)
     if not onScreen then return false end
     
     local centerScreen = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
     local distance = (Vector2.new(screenPos.X, screenPos.Y) - centerScreen).Magnitude
     
-    return distance <= settings.fov
+    return distance <= fovSize
 end
 
 -- Function to check if a player is valid to target
@@ -282,49 +486,33 @@ local function isValidTarget(targetPlayer)
     if not targetPlayer.Character:FindFirstChild("Humanoid") then return false end
     if targetPlayer.Character.Humanoid.Health <= 0 then return false end
     
-    -- FOV check
-    if not isInFOV(targetPlayer) then return false end
+    -- Team check (replace with your own team check logic if needed)
+    -- if targetPlayer.Team == player.Team then return false end
     
-    -- Team check
-    if settings.teamCheck and targetPlayer.Team == player.Team then return false end
-    
-    -- Check for obstacles (basic raycast)
-    local ray = Ray.new(camera.CFrame.Position, (targetPlayer.Character.Head.Position - camera.CFrame.Position).Unit * settings.maxDistance)
-    local hit, position = workspace:FindPartOnRay(ray, player.Character, false, true)
-    
-    if hit and hit:IsDescendantOf(targetPlayer.Character) then
-        return true
-    elseif not hit then
-        return true
-    end
-    
-    return false
+    return true
 end
 
 -- Function to get closest player
-local function getClosestPlayer()
+local function getClosestPlayer(fovSize)
     local closestPlayer = nil
-    local shortestDistance = settings.maxDistance
-    local closestScreenDistance = settings.fov
+    local shortestDistance = math.huge
+    local closestScreenDistance = fovSize
 
     for _, p in pairs(Players:GetPlayers()) do
-        if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
+        if isValidTarget(p) then
             local screenPos, onScreen = camera:WorldToScreenPoint(p.Character.Head.Position)
             
             if onScreen then
                 local centerScreen = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
                 local screenDistance = (Vector2.new(screenPos.X, screenPos.Y) - centerScreen).Magnitude
                 
-                if screenDistance <= settings.fov then
-                    if isValidTarget(p) then
-                        local worldDistance = (p.Character.Head.Position - player.Character.Head.Position).Magnitude
-                        
-                        -- Prioritize players closer to FOV center
-                        if screenDistance < closestScreenDistance then
-                            closestPlayer = p
-                            closestScreenDistance = screenDistance
-                            shortestDistance = worldDistance
-                        end
+                if screenDistance <= fovSize then
+                    local worldDistance = (p.Character.Head.Position - player.Character.Head.Position).Magnitude
+                    
+                    if screenDistance < closestScreenDistance then
+                        closestPlayer = p
+                        closestScreenDistance = screenDistance
+                        shortestDistance = worldDistance
                     end
                 end
             end
@@ -338,81 +526,90 @@ end
 local targetPlayer = nil
 local isAiming = false
 
--- Input handling
+-- Input handling for aimbot
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
-    if input.KeyCode == settings.key and settings.enabled then
-        isAiming = not isAiming
-        
-        if isAiming then
-            targetPlayer = getClosestPlayer()
-            if targetPlayer then
-                StatusLabel.Text = "Locked on: " .. targetPlayer.Name
-            else
-                StatusLabel.Text = "No valid target found"
-                isAiming = false
-            end
-        else
-            StatusLabel.Text = "Aimbot Active - Press E to lock"
-            targetPlayer = nil
-        end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and settings.enabled then
+        isAiming = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isAiming = false
+        targetPlayer = nil
     end
 end)
 
 -- Aiming logic
 RunService.RenderStepped:Connect(function()
-    -- Always update FOV circle position to center of screen
-    FOVCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
-    
-    if isAiming and targetPlayer and settings.enabled then
-        if isValidTarget(targetPlayer) then
+    if settings.enabled and isAiming then
+        targetPlayer = getClosestPlayer(settings.aimbot_fov)
+        
+        if targetPlayer then
             local targetPosition = targetPlayer.Character.Head.Position
+            
+            if settings.randomization > 0 then
+                -- Add randomization
+                local randomX = (math.random() - 0.5) * settings.randomization
+                local randomY = (math.random() - 0.5) * settings.randomization
+                local randomZ = (math.random() - 0.5) * settings.randomization
+                
+                targetPosition = targetPosition + Vector3.new(randomX, randomY, randomZ)
+            end
             
             -- Smoothly move camera towards target
             local targetCFrame = CFrame.new(camera.CFrame.Position, targetPosition)
-            camera.CFrame = camera.CFrame:Lerp(targetCFrame, settings.sensitivity)
-        else
-            -- Target no longer valid
-            isAiming = false
-            targetPlayer = nil
-            StatusLabel.Text = "Target lost"
+            
+            if settings.smoothing_type == "Linear" then
+                camera.CFrame = camera.CFrame:Lerp(targetCFrame, 1 / (settings.smoothing + 1))
+            else
+                -- Exponential smoothing
+                local delta = targetCFrame.LookVector - camera.CFrame.LookVector
+                camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + camera.CFrame.LookVector + delta * (1 / (settings.smoothing + 1)))
+            end
         end
     end
+    
+    -- Update FOV circles
+    if drawings.fovCircle then
+        drawings.fovCircle.Radius = settings.aimbot_fov
+    end
+    
+    if drawings.silentFovCircle then
+        drawings.silentFovCircle.Radius = settings.silent_aim_fov
+    end
 end)
 
--- Make GUI draggable
-local dragging = false
-local dragInput
-local dragStart
-local startPos
-
-local function updateDrag(input)
-    local delta = input.Position - dragStart
-    Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
-
-TitleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = Frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
+-- Trigger bot functionality (simplified)
+if settings.trigger_enabled then
+    RunService.RenderStepped:Connect(function()
+        if settings.trigger_when_aiming and not isAiming then
+            return
+        end
+        
+        local rayOrigin = camera.CFrame.Position
+        local rayDirection = camera.CFrame.LookVector * 1000
+        
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        raycastParams.FilterDescendantsInstances = {player.Character}
+        
+        local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+        
+        if raycastResult and raycastResult.Instance then
+            local hitPlayer = Players:GetPlayerFromCharacter(raycastResult.Instance.Parent)
+            
+            if hitPlayer and isValidTarget(hitPlayer) then
+                -- Simulate random chance to hit based on hit_chance setting
+                if math.random(1, 100) <= settings.hit_chance then
+                    -- Simulate mouse click
+                    mouse1press()
+                    wait(0.01)
+                    mouse1release()
+                end
             end
-        end)
-    end
-end)
-
-TitleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        updateDrag(input)
-    end
-end)
+        end
+    end)
+end
